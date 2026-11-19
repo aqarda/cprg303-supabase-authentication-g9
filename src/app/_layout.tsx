@@ -1,18 +1,41 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { Stack } from "expo-router";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { AuthProvider, useAuth } from "../context/AuthContext";
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+function RootNavigator() {
+  const { session, loading } = useAuth();
 
-SplashScreen.preventAutoHideAsync();
+  if (loading) {
+    return (
+      <View style={styles.splash}>
+        <ActivityIndicator size="large" />
+        <Text style={styles.splashText}>Restoring session...</Text>
+      </View>
+    );
+  }
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <Stack>
+      <Stack.Protected guard={!!session}>
+        <Stack.Screen name="index" options={{ title: "Home" }} />
+      </Stack.Protected>
+      <Stack.Protected guard={!session}>
+        <Stack.Screen name="sign-in" options={{ title: "Sign In" }} />
+        <Stack.Screen name="sign-up" options={{ title: "Sign Up" }} />
+      </Stack.Protected>
+    </Stack>
   );
 }
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <RootNavigator />
+    </AuthProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  splash: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+  splashText: { fontSize: 16, color: "#555" },
+});
