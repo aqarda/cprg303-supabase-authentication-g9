@@ -1,8 +1,10 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
+import { AppState, Platform } from 'react-native';
+
 import { getAuthErrorMessage } from '@/lib/authErrors';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 
 // error is null when the request works, otherwise it is a message to show the user
 export type AuthResult = { error: string | null };
@@ -30,7 +32,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 async function signUp({ fullName, email, password }: SignUpInput): Promise<SignUpResult> {
   try {
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await getSupabase().auth.signUp({
       email: email.trim(),
       password,
       options: { data: { full_name: fullName.trim() } },
@@ -49,7 +51,7 @@ async function signUp({ fullName, email, password }: SignUpInput): Promise<SignU
 
 async function signIn({ email, password }: SignInInput): Promise<AuthResult> {
   try {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error } = await getSupabase().auth.signInWithPassword({
       email: email.trim(),
       password,
     });
@@ -61,7 +63,7 @@ async function signIn({ email, password }: SignInInput): Promise<AuthResult> {
 
 async function signOut(): Promise<AuthResult> {
   try {
-    const { error } = await supabase.auth.signOut();
+    const { error } = await getSupabase().auth.signOut();
     return { error: error ? getAuthErrorMessage(error) : null };
   } catch (error) {
     return { error: getAuthErrorMessage(error) };
@@ -86,33 +88,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
-
-    // Load the saved session when the app starts
-    supabase.auth
-      .getSession()
-      .then(({ data }) => {
-        if (isMounted) {
-          setSession(data.session);
-        }
-      })
-      .catch(() => {
-        // If loading fails, continue as signed out
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      });
-
-    // Update the session whenever the user signs in, signs out, or the token refreshes
-    const { data } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
+    const { auth } = getSupabase();
+    // INITIAL_SESSION restores the saved user. Later events reflect sign-in and sign-out.
+    const { data } = auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setIsLoading(false);
     });
 
+    function updateRefresh(state: string) {
+      if (state === 'active') {
+        void auth.startAutoRefresh();
+      } else {
+        void auth.stopAutoRefresh();
+      }
+    }
+
+    const appState = Platform.OS === 'web'
+      ? undefined
+      : AppState.addEventListener('change', updateRefresh);
+    if (appState && AppState.currentState) updateRefresh(AppState.currentState);
+
     return () => {
-      isMounted = false;
       data.subscription.unsubscribe();
+      appState?.remove();
+      if (appState) void auth.stopAutoRefresh();
     };
   }, []);
 
