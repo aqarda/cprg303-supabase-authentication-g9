@@ -4,17 +4,16 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 
 ## Get started
 
-1. Install dependencies
+Extract the ZIP, open the folder containing this README and `package.json` in VS Code, and run these commands in its terminal. The project was tested with Node.js 24.
 
-   ```bash
-   npm install
-   ```
+```sh
+npm ci
+npx expo start --go --clear
+```
 
-2. Start the app
+Leave that terminal running. On an iPhone, join the same Wi-Fi as the computer and scan the QR code with Camera. If the phone cannot reach the development server, stop Expo with Ctrl+C and run `npx expo start --go --tunnel --clear`. Scan the new QR code.
 
-   ```bash
-   npx expo start
-   ```
+The project reads `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from the local `.env` beside `package.json`. The fixed ZIP includes this file. For a fresh Git clone, copy `.env.example` to `.env`, fill in the team’s project URL and publishable key, and restart Expo. Git ignores `.env`. See [Supabase setup](supabase/README.md) for the database setup.
 
 In the output, you'll find options to open the app in a
 
@@ -37,7 +36,7 @@ This command will move the starter code to the **example** directory and create 
 
 ### Other setup steps
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
+- Run `npm run lint` to check lint rules and `npx tsc --noEmit` to check TypeScript.
 - If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
 - Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
 
