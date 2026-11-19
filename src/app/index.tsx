@@ -5,13 +5,14 @@ import SignOutButton from "../components/SignOutButton";
 import { useAuth } from "../context/AuthContext";
 
 export default function HomeScreen() {
-  const { user } = useAuth();
-  const displayName = user?.user_metadata?.name ?? user?.email ?? "Signed in";
+  const { displayName, user } = useAuth();
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: displayName, headerRight: () => <SignOutButton /> }} />
-      <ProtectedList />
+      <Stack.Screen
+        options={{ title: displayName ?? "Home", headerRight: () => <SignOutButton /> }}
+      />
+      <ProtectedList key={user?.id} />
     </View>
   );
 }
