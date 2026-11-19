@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
-import { supabase } from "../lib/supabase";
+import { getSupabase } from "../lib/supabase";
 
-type Item = { id: number; title: string; description: string | null };
+type Item = { id: number; title: string; body: string | null };
 
 export default function ProtectedList() {
   const { session } = useAuth();
@@ -11,26 +11,41 @@ export default function ProtectedList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const [request, setRequest] = useState(0);
+  const userId = session?.user.id;
+
+  function reload() {
     setLoading(true);
     setError(null);
-    try {
-      const { data, error } = await supabase
-        .from("protected_items")
-        .select("id, title, description")
-        .order("id");
-      if (error) throw error;
-      setItems(data ?? []);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load data. Check your connection.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    setRequest((previous) => previous + 1);
+  }
 
   useEffect(() => {
-    if (session) load();
-  }, [session, load]);
+    if (!userId) return;
+    const controller = new AbortController();
+
+    async function load() {
+      try {
+        const { data, error } = await getSupabase()
+          .from("member_resources")
+          .select("id, title, body")
+          .order("id")
+          .abortSignal(controller.signal);
+        if (controller.signal.aborted) return;
+        if (error) setError(error.message);
+        else setItems(data ?? []);
+      } catch {
+        if (!controller.signal.aborted) {
+          setError("Could not load data. Check your connection.");
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => controller.abort();
+  }, [userId, request]);
 
   if (loading && items.length === 0) {
     return (
@@ -44,7 +59,7 @@ export default function ProtectedList() {
     return (
       <View style={styles.center}>
         <Text style={styles.error}>{error}</Text>
-        <Text style={styles.retry} onPress={load}>Tap to retry</Text>
+        <Text style={styles.retry} onPress={reload}>Tap to retry</Text>
       </View>
     );
   }
@@ -53,14 +68,14 @@ export default function ProtectedList() {
     <FlatList
       data={items}
       keyExtractor={(item) => String(item.id)}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} />}
       contentContainerStyle={styles.list}
       ListHeaderComponent={<Text style={styles.heading}>Members-only data</Text>}
       ListEmptyComponent={<Text style={styles.empty}>No items found.</Text>}
       renderItem={({ item }) => (
         <View style={styles.card}>
           <Text style={styles.title}>{item.title}</Text>
-          {item.description ? <Text style={styles.desc}>{item.description}</Text> : null}
+          {item.body ? <Text style={styles.desc}>{item.body}</Text> : null}
         </View>
       )}
     />
